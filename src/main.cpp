@@ -52,27 +52,27 @@ void DrawVisualBurger(int x, int startY) {
     for (int i = (int)activeBurgerLayers.size() - 1; i >= 0; i--) {
         std::string layer = activeBurgerLayers[i];
         if (layer == "Bun Base") {
-            DrawRectangleRounded({(float)x - 60.0f, (float)currentY, 120.0f, 20.0f}, 0.3f, 4, MAROON);
+            DrawRectangleRounded(Rectangle{(float)x - 60.0f, (float)currentY, 120.0f, 20.0f}, 0.3f, 4, MAROON);
             DrawText("BUN BASE", x - 40, currentY + 3, 12, WHITE);
         } 
         else if (layer == "Grilled Patty") {
-            DrawRectangleRec({(float)x - 55.0f, (float)currentY, 110.0f, 18.0f}, DARKBROWN);
+            DrawRectangleRec(Rectangle{(float)x - 55.0f, (float)currentY, 110.0f, 18.0f}, DARKBROWN);
             DrawText("PATTY", x - 20, currentY + 2, 12, WHITE);
         } 
         else if (layer == "Melted Cheese") {
-            DrawRectangleRec({(float)x - 58.0f, (float)currentY + 4.0f, 116.0f, 10.0f}, GOLD);
+            DrawRectangleRec(Rectangle{(float)x - 58.0f, (float)currentY + 4.0f, 116.0f, 10.0f}, GOLD);
             DrawText("CHEESE", x - 25, currentY, 12, BLACK);
         } 
         else if (layer == "Fresh Tomato") {
-            DrawRectangleRec({(float)x - 50.0f, (float)currentY, 100.0f, 14.0f}, RED);
+            DrawRectangleRec(Rectangle{(float)x - 50.0f, (float)currentY, 100.0f, 14.0f}, RED);
             DrawText("TOMATO", x - 25, currentY + 1, 12, WHITE);
         } 
         else if (layer == "Ketchup Squirt") {
-            DrawRectangleRec({(float)x - 40.0f, (float)currentY + 5.0f, 80.0f, 8.0f}, RED);
+            DrawRectangleRec(Rectangle{(float)x - 40.0f, (float)currentY + 5.0f, 80.0f, 8.0f}, RED);
             DrawText("KETCHUP", x - 25, currentY - 2, 10, WHITE);
         } 
         else if (layer == "Bun Top") {
-            DrawRectangleRounded({(float)x - 60.0f, (float)currentY - 5.0f, 120.0f, 25.0f}, 0.6f, 4, ORANGE);
+            DrawRectangleRounded(Rectangle{(float)x - 60.0f, (float)currentY - 5.0f, 120.0f, 25.0f}, 0.6f, 4, ORANGE);
             DrawText("BUN TOP", x - 30, currentY + 2, 12, WHITE);
         }
         currentY -= 25; 
@@ -119,7 +119,7 @@ int main() {
             DrawText(TextFormat("Gold: $%d", gold), 20, 12, 20, GREEN);
             DrawText(TextFormat("Stage: %d", currentStage), 200, 12, 20, WHITE);
             DrawText(TextFormat("Buns:%d | Patties:%d | Cheese:%d | Tomato:%d", inventoryBuns, inventoryPatties, inventoryCheese, inventoryTomatoes), 400, 14, 16, LIGHTGRAY);
-            if (DrawButton({800.0f, 7.0f, 80.0f, 30.0f}, "HUB", GRAY, WHITE)) {
+            if (DrawButton(Rectangle{800.0f, 7.0f, 80.0f, 30.0f}, "HUB", GRAY, WHITE)) {
                 currentScreen = MENU;
             }
         }
@@ -129,7 +129,7 @@ int main() {
                 DrawText("STEAL AND COOK", windowWidth/2 - MeasureText("STEAL AND COOK", 40)/2, 80, 40, RED);
                 DrawText("No Workers Allowed. Infiltrate competitors, secure recipes, automate production.", windowWidth/2 - MeasureText("No Workers Allowed. Infiltrate competitors, secure recipes, automate production.", 16)/2, 140, 16, GRAY);
 
-                if (DrawButton({(float)windowWidth/2 - 150.0f, 240.0f, 300.0f, 50.0f}, "1. INFILTRATE COMPETITORS", DARKGRAY, WHITE)) {
+                if (DrawButton(Rectangle{(float)windowWidth/2 - 150.0f, 240.0f, 300.0f, 50.0f}, "1. INFILTRATE COMPETITORS", DARKGRAY, WHITE)) {
                     suspicion = 0.0f;
                     recipePiecesCollected = 0;
                     secretRoomBuilt = false;
@@ -139,13 +139,13 @@ int main() {
                     targetRecipeName = pools[std::rand() % 3];
                     currentScreen = INFILTRATION;
                 }
-                if (DrawButton({(float)windowWidth/2 - 150.0f, 310.0f, 300.0f, 50.0f}, "2. MY RESTAURANT DESK", BLUE, WHITE)) {
+                if (DrawButton(Rectangle{(float)windowWidth/2 - 150.0f, 310.0f, 300.0f, 50.0f}, "2. MY RESTAURANT DESK", BLUE, WHITE)) {
                     currentScreen = OWN_RESTAURANT;
                 }
-                if (DrawButton({(float)windowWidth/2 - 150.0f, 380.0f, 300.0f, 50.0f}, "3. SUPPLY WAREHOUSE SHOP", GOLD, BLACK)) {
+                if (DrawButton(Rectangle{(float)windowWidth/2 - 150.0f, 380.0f, 300.0f, 50.0f}, "3. SUPPLY WAREHOUSE SHOP", GOLD, BLACK)) {
                     currentScreen = SHOP;
                 }
-                if (DrawButton({(float)windowWidth/2 - 150.0f, 470.0f, 300.0f, 45.0f}, "EXIT CORE ENGINE", RED, WHITE)) {
+                if (DrawButton(Rectangle{(float)windowWidth/2 - 150.0f, 470.0f, 300.0f, 45.0f}, "EXIT CORE ENGINE", RED, WHITE)) {
                     CloseWindow();
                     return 0;
                 }
@@ -166,7 +166,7 @@ int main() {
                     DrawRectangle(32, 247, 296, 56, ColorAlpha(GREEN, 0.2f));
                     DrawText("ROOM OPERATIONAL", 90, 265, 16, DARKGREEN);
                 } else {
-                    if (DrawButton({40.0f, 252.0f, 280.0f, 45.0f}, "Build Hidden Laboratory ($50)", BLACK, WHITE)) {
+                    if (DrawButton(Rectangle{40.0f, 252.0f, 280.0f, 45.0f}, "Build Hidden Laboratory ($50)", BLACK, WHITE)) {
                         if (gold >= 50) { gold -= 50; secretRoomBuilt = true; }
                     }
                 }
@@ -181,19 +181,19 @@ int main() {
 
                 DrawVisualBurger(635, 530);
 
-                if (DrawButton({440.0f, 150.0f, 160.0f, 40.0f}, "+ Add Bun Base", ORANGE, WHITE)) activeBurgerLayers.push_back("Bun Base");
-                if (DrawButton({440.0f, 200.0f, 160.0f, 40.0f}, "+ Add Patty", DARKBROWN, WHITE)) activeBurgerLayers.push_back("Grilled Patty");
-                if (DrawButton({440.0f, 250.0f, 160.0f, 40.0f}, "+ Add Cheese", GOLD, BLACK)) activeBurgerLayers.push_back("Melted Cheese");
-                if (DrawButton({440.0f, 300.0f, 160.0f, 40.0f}, "+ Add Tomato", RED, WHITE)) activeBurgerLayers.push_back("Fresh Tomato");
-                if (DrawButton({440.0f, 350.0f, 160.0f, 40.0f}, "+ Add Ketchup", RED, WHITE)) activeBurgerLayers.push_back("Ketchup Squirt");
-                if (DrawButton({440.0f, 400.0f, 160.0f, 40.0f}, "+ Add Bun Top", ORANGE, WHITE)) activeBurgerLayers.push_back("Bun Top");
+                if (DrawButton(Rectangle{440.0f, 150.0f, 160.0f, 40.0f}, "+ Add Bun Base", ORANGE, WHITE)) activeBurgerLayers.push_back("Bun Base");
+                if (DrawButton(Rectangle{440.0f, 200.0f, 160.0f, 40.0f}, "+ Add Patty", DARKBROWN, WHITE)) activeBurgerLayers.push_back("Grilled Patty");
+                if (DrawButton(Rectangle{440.0f, 250.0f, 160.0f, 40.0f}, "+ Add Cheese", GOLD, BLACK)) activeBurgerLayers.push_back("Melted Cheese");
+                if (DrawButton(Rectangle{440.0f, 300.0f, 160.0f, 40.0f}, "+ Add Tomato", RED, WHITE)) activeBurgerLayers.push_back("Fresh Tomato");
+                if (DrawButton(Rectangle{440.0f, 350.0f, 160.0f, 40.0f}, "+ Add Ketchup", RED, WHITE)) activeBurgerLayers.push_back("Ketchup Squirt");
+                if (DrawButton(Rectangle{440.0f, 400.0f, 160.0f, 40.0f}, "+ Add Bun Top", ORANGE, WHITE)) activeBurgerLayers.push_back("Bun Top");
 
                 if (activeBurgerLayers.size() >= 6) {
-                    if (DrawButton({440.0f, 480.0f, 220.0f, 45.0f}, "SERVE TO CUSTOMER", GREEN, WHITE)) {
+                    if (DrawButton(Rectangle{440.0f, 480.0f, 220.0f, 45.0f}, "SERVE TO CUSTOMER", GREEN, WHITE)) {
                         suspicion = std::max(0.0f, suspicion - 15.0f);
                         activeBurgerLayers.clear();
                     }
-                    if (DrawButton({440.0f, 535.0f, 220.0f, 45.0f}, "SNEAK TO SECRET LAB", PURPLE, WHITE)) {
+                    if (DrawButton(Rectangle{440.0f, 535.0f, 220.0f, 45.0f}, "SNEAK TO SECRET LAB", PURPLE, WHITE)) {
                         if (!secretRoomBuilt) {
                             suspicion += 25.0f;
                         } else {
@@ -206,7 +206,7 @@ int main() {
                     }
                 }
 
-                if (DrawButton({30.0f, 560.0f, 220.0f, 40.0f}, "Abort Mission Line", DARKGRAY, WHITE)) {
+                if (DrawButton(Rectangle{30.0f, 560.0f, 220.0f, 40.0f}, "Abort Mission Line", DARKGRAY, WHITE)) {
                     currentScreen = MENU;
                 }
             } break;
@@ -225,7 +225,7 @@ int main() {
                         DrawText(unlockedRecipes[i].name.c_str(), 50, rowY + 15, 20, BLACK);
                         DrawText(TextFormat("Tier: %s | Payout Base Value: $%d", unlockedRecipes[i].difficulty.c_str(), unlockedRecipes[i].payout), 50, rowY + 45, 14, DARKGRAY);
 
-                        if (DrawButton({480.0f, (float)rowY + 20.0f, 160.0f, 40.0f}, "Manual Cook", BLUE, WHITE)) {
+                        if (DrawButton(Rectangle{480.0f, (float)rowY + 20.0f, 160.0f, 40.0f}, "Manual Cook", BLUE, WHITE)) {
                             if (inventoryBuns > 0 && inventoryPatties > 0 && inventoryCheese > 0 && inventoryTomatoes > 0) {
                                 inventoryBuns--; inventoryPatties--; inventoryCheese--; inventoryTomatoes--;
                                 gold += unlockedRecipes[i].payout;
@@ -233,4 +233,65 @@ int main() {
                         }
                         
                         if (hasAutoCooker) {
-                            if (DrawButton({660.0f, (float)rowY + 20.0
+                            if (DrawButton(Rectangle{660.0f, (float)rowY + 20.0f, 160.0f, 40.0f}, "Run Auto Batch", GREEN, WHITE)) {
+                                int loops = 1 + autoLevel;
+                                for (int k = 0; k < loops; k++) {
+                                    if (inventoryBuns > 0 && inventoryPatties > 0 && inventoryCheese > 0 && inventoryTomatoes > 0) {
+                                        inventoryBuns--; inventoryPatties--; inventoryCheese--; inventoryTomatoes--;
+                                        gold += unlockedRecipes[i].payout;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } break;
+
+            case SHOP: {
+                DrawText("MATERIAL SUPPLIER & AUTOMATION RIGS", 30, 70, 26, DARKGRAY);
+
+                int startItemY = 140;
+                
+                DrawText("Premium Dough Buns (x5 Bulk pack) - Cost: $10", 40, startItemY + 10, 18, BLACK);
+                if (DrawButton(Rectangle{450.0f, (float)startItemY, 140.0f, 35.0f}, "Purchase", ORANGE, WHITE)) {
+                    if (gold >= 10) { gold -= 10; inventoryBuns += 5; }
+                }
+                
+                DrawText("Fresh Raw Patties (x5 Bulk pack) - Cost: $20", 40, startItemY + 70, 18, BLACK);
+                if (DrawButton(Rectangle{450.0f, (float)startItemY + 60.0f, 140.0f, 35.0f}, "Purchase", ORANGE, WHITE)) {
+                    if (gold >= 20) { gold -= 20; inventoryPatties += 5; }
+                }
+
+                DrawText("Cheddar Cheese Slices (x5 Bulk pack) - Cost: $15", 40, startItemY + 130, 18, BLACK);
+                if (DrawButton(Rectangle{450.0f, (float)startItemY + 120.0f, 140.0f, 35.0f}, "Purchase", ORANGE, WHITE)) {
+                    if (gold >= 15) { gold -= 15; inventoryCheese += 5; }
+                }
+
+                DrawText("Organic Tomatoes (x5 Bulk pack) - Cost: $12", 40, startItemY + 190, 18, BLACK);
+                if (DrawButton(Rectangle{450.0f, (float)startItemY + 180.0f, 140.0f, 35.0f}, "Purchase", ORANGE, WHITE)) {
+                    if (gold >= 12) { gold -= 12; inventoryTomatoes += 5; }
+                }
+
+                DrawLine(30, 410, 850, 410, GRAY);
+                DrawText("Automation Factory Hardware System upgrades (No Labor Mode):", 30, 430, 18, DARKGRAY);
+
+                if (!hasAutoCooker) {
+                    if (DrawButton(Rectangle{30.0f, 470.0f, 400.0f, 50.0f}, "Purchase Auto-Assembly Engine Setup ($100)", RED, WHITE)) {
+                        if (gold >= 100) { gold -= 100; hasAutoCooker = true; }
+                    }
+                } else {
+                    DrawText(TextFormat("Auto-Assembly Engine Rig: ONLINE (Processing Level: %d)", autoLevel), 30, 470, 18, GREEN);
+                    int upgCost = (autoLevel + 1) * 50;
+                    if (DrawButton(Rectangle{30.0f, 510.0f, 400.0f, 45.0f}, TextFormat("Upgrade Conveyor Feed Throughput ($%d)", upgCost), BLACK, WHITE)) {
+                        if (gold >= upgCost) { gold -= upgCost; autoLevel++; }
+                    }
+                }
+            } break;
+        }
+
+        EndDrawing();
+    }
+
+    CloseWindow();
+    return 0;
+}

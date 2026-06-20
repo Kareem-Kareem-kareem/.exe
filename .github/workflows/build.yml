@@ -1,10 +1,9 @@
-name: Build Steal And Cook Game
+name: Build Graphical Steal And Cook Game
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  pull_request: [ main ]
 
 jobs:
   build:
@@ -17,11 +16,11 @@ jobs:
       - name: Configure CMake
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build
+      - name: Build Game
         run: cmake --build build --config Release
 
       - name: Upload Game Executable
         uses: actions/upload-artifact@v4
         with:
-          name: StealAndCook-Game
+          name: StealAndCook-Graphical
           path: build/Release/StealAndCook.exe

@@ -1,354 +1,315 @@
-#include <iostream>
-#include <string>
+#include "raylib.h"
 #include <vector>
+#include <string>
+#include <algorithm>
 #include <cstdlib>
 #include <ctime>
-#include <algorithm>
 
-// ════════════════════════════════════════════════════════════════════
-//  Structures & Game State Data Configurations
-// ════════════════════════════════════════════════════════════════════
+// Game Screens
+enum GameScreen { MENU, INFILTRATION, OWN_RESTAURANT, SHOP };
 
-struct StolenRecipe {
+// Recipe Structure
+struct Recipe {
     std::string name;
     std::string difficulty;
-    int buyPrice;
-    int sellPayout;
+    int payout;
 };
 
-struct Inventory {
-    int gold = 150; // Starting money to allow buying materials or rooms
-    int buns = 5;
-    int patties = 5;
-    int cheese = 5;
-    int tomatoes = 5;
-    int ketchup = 5;
-};
+// Main Game State Variables
+int gold = 150;
+int inventoryBuns = 5;
+int inventoryPatties = 5;
+int inventoryCheese = 5;
+int inventoryTomatoes = 5;
+int inventoryKetchup = 5;
 
-struct Automation {
-    bool hasAutoCooker = false;
-    int autoSpeedLevel = 0; // Upgradable automation parameters
-};
+bool hasAutoCooker = false;
+int autoLevel = 0;
+int currentStage = 1;
 
-class GameEngine {
-private:
-    Inventory inv;
-    Automation autoUpgrades;
-    std::vector<StolenRecipe> unlockedRecipes;
-    int currentStage = 1;
-    bool quitGame = false;
+std::vector<Recipe> unlockedRecipes;
+std::vector<std::string> activeBurgerLayers; 
+float suspicion = 0.0f;
+bool secretRoomBuilt = false;
+int recipePiecesCollected = 0;
+std::string targetRecipeName = "Classic Slider";
+int selectedDifficulty = 1; // 1 = Easy, 2 = Normal, 3 = Hard
 
-    // Recipe pools split uniquely among difficulties
-    std::vector<std::string> easyPool = { "Classic Slider", "Quick Bite Burger", "Junior Stack" };
-    std::vector<std::string> normalPool = { "Bacon Deluxe", "Garden Avocado Burger", "Double Melt" };
-    std::vector<std::string> hardPool = { "The Mega Colossus", "Trident Triple Tower", "Chef's Masterpiece" };
+// Helper to handle simple button clicking
+bool DrawButton(Rectangle rect, const char* text, Color baseColor, Color textColor) {
+    Vector2 mousePos = GetMousePosition();
+    bool hovered = CheckCollisionPointRec(mousePos, rect);
+    Color drawColor = hovered ? ColorAlpha(baseColor, 0.8f) : baseColor;
+    
+    DrawRectangleRec(rect, drawColor);
+    DrawRectangleLinesEx(rect, 2, DARKGRAY);
+    
+    int fontSize = 20;
+    int textWidth = MeasureText(text, fontSize);
+    DrawText(text, rect.x + (rect.width - textWidth)/2, rect.y + (rect.height - fontSize)/2, fontSize, textColor);
+    
+    return hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+}
 
-    void ShowOpeningCutscene() {
-        std::cout << "\n================================═════════════════════════\n";
-        std::cout << "                  STEAL AND COOK: PROLOGUE                \n";
-        std::cout << "================================═════════════════════════\n";
-        std::cout << " You open the doors to your dream restaurant...\n";
-        std::cout << " But right across the street, the massive Mega-Burger Franchise\n";
-        std::cout << " is completely destroying your business. Their food is flawless.\n";
-        std::cout << " Your tables are completely empty. Failure is imminent.\n\n";
-        std::cout << " Out of desperation, you hatch a devious plan:\n";
-        std::cout << " You will infiltrate their kitchens, get hired as a cook,\n";
-        std::cout << " sneak their burgers to a secret research center room,\n";
-        std::cout << " reverse-engineer their secret formula recipes, and use their\n";
-        std::cout << " own menus to automate your restaurant to total glory!\n";
-        std::cout << "================================═════════════════════════\n";
-        std::cout << " Press Enter to begin your journey of corporate espionage... ";
-        std::cin.get();
+// Visual layout rendering helper for stacking burger components
+void DrawVisualBurger(int x, int startY) {
+    int currentY = startY;
+    // Walk backward to stack from bottom up visually
+    for (int i = (int)activeBurgerLayers.size() - 1; i >= 0; i--) {
+        std::string layer = activeBurgerLayers[i];
+        if (layer == "Bun Base") {
+            DrawRectangleRounded({(float)x - 60, (float)currentY, 120, 20}, 0.3f, 4, MAROON);
+            DrawText("BUN BASE", x - 40, currentY + 3, 12, WHITE);
+        } 
+        else if (layer == "Grilled Patty") {
+            DrawRectangle({x - 55, currentY, 110, 18}, DARKBROWN);
+            DrawText("PATTY", x - 20, currentY + 2, 12, WHITE);
+        } 
+        else if (layer == "Melted Cheese") {
+            DrawRectangle({x - 58, currentY + 4, 116, 10}, GOLD);
+            DrawText("CHEESE", x - 25, currentY, 12, BLACK);
+        } 
+        else if (layer == "Fresh Tomato") {
+            DrawRectangle({x - 50, currentY, 100, 14}, RED);
+            DrawText("TOMATO", x - 25, currentY + 1, 12, WHITE);
+        } 
+        else if (layer == "Ketchup Squirt") {
+            DrawRectangle({x - 40, currentY + 5, 80, 8}, RED);
+            DrawText("KETCHUP", x - 25, currentY - 2, 10, WHITE);
+        } 
+        else if (layer == "Bun Top") {
+            DrawRectangleRounded({(float)x - 60, (float)currentY - 5, 120, 25}, 0.6f, 4, ORANGE);
+            DrawText("BUN TOP", x - 30, currentY + 2, 12, WHITE);
+        }
+        currentY -= 25; // Shift next ingredient position upward
     }
-
-    void HandleSafeInput(int& choice) {
-        if (!(std::cin >> choice)) {
-            std::cin.clear();
-            std::cin.ignore(10000, '\n');
-            choice = -1;
-        }
-    }
-
-    void RunShop() {
-        while (true) {
-            std::cout << "\n══════════════════════════════════════════════════\n";
-            std::cout << "                  RESTAURANT SHOP                  \n";
-            std::cout << "══════════════════════════════════════════════════\n";
-            std::cout << " Current Gold: $" << inv.gold << "\n\n";
-            std::cout << " Materials:\n";
-            std::cout << " 1. Buy Buns (x5)       - $10  (You have: " << inv.buns << ")\n";
-            std::cout << " 2. Buy Patties (x5)    - $20  (You have: " << inv.patties << ")\n";
-            std::cout << " 3. Buy Cheese (x5)     - $15  (You have: " << inv.cheese << ")\n";
-            std::cout << " 4. Buy Tomatoes (x5)   - $12  (You have: " << inv.tomatoes << ")\n";
-            std::cout << " 5. Buy Ketchup (x5)    - $8   (You have: " << inv.ketchup << ")\n\n";
-            std::cout << " Upgrades (No Workers Allowed - Tech Automation Only):\n";
-            std::cout << " 6. Install Auto-Cooker Machine   - $100 [Status: " << (autoUpgrades.hasAutoCooker ? "OWNED" : "LOCKED") << "]\n";
-            if (autoUpgrades.hasAutoCooker) {
-                std::cout << " 7. Upgrade Machine Processing   - $" << (autoUpgrades.autoSpeedLevel + 1) * 50 << " (Level " << autoUpgrades.autoSpeedLevel << ")\n";
-            }
-            std::cout << " 8. Exit Shop\n";
-            std::cout << " Choice: ";
-
-            int choice;
-            HandleSafeInput(choice);
-
-            if (choice == 1 && inv.gold >= 10) { inv.gold -= 10; inv.buns += 5; }
-            else if (choice == 2 && inv.gold >= 20) { inv.gold -= 20; inv.patties += 5; }
-            else if (choice == 3 && inv.gold >= 15) { inv.gold -= 15; inv.cheese += 5; }
-            else if (choice == 4 && inv.gold >= 12) { inv.gold -= 12; inv.tomatoes += 5; }
-            else if (choice == 5 && inv.gold >= 8) { inv.gold -= 8; inv.ketchup += 5; }
-            else if (choice == 6 && !autoUpgrades.hasAutoCooker) {
-                if (inv.gold >= 100) { inv.gold -= 100; autoUpgrades.hasAutoCooker = true; std::cout << " Auto-Cooker system active!\n"; }
-                else { std::cout << " Not enough gold!\n"; }
-            }
-            else if (choice == 7 && autoUpgrades.hasAutoCooker) {
-                int cost = (autoUpgrades.autoSpeedLevel + 1) * 50;
-                if (inv.gold >= cost) { inv.gold -= cost; autoUpgrades.autoSpeedLevel++; std::cout << " Automation efficiency increased!\n"; }
-                else { std::cout << " Not enough gold!\n"; }
-            }
-            else if (choice == 8) {
-                break;
-            } else {
-                std::cout << " Invalid selection or insufficient funds.\n";
-            }
-        }
-    }
-
-    void InfiltrateMission() {
-        std::cout << "\n--- SELECT TARGET INFILTRATION DIFFICULTY ---\n";
-        std::cout << "1. Easy   (Slower suspicion gain rate, unique reward tier)\n";
-        std::cout << "2. Normal (Standard suspicion gain rate, unique reward tier)\n";
-        std::cout << "3. Hard   (Fast suspicion gain rate, supreme reward tier)\n";
-        std::cout << "4. Cancel Mission\n";
-        std::cout << "Choice: ";
-        
-        int diffChoice;
-        HandleSafeInput(diffChoice);
-        if (diffChoice < 1 || diffChoice > 3) return;
-
-        std::string diffStr = (diffChoice == 1) ? "Easy" : (diffChoice == 2) ? "Normal" : "Hard";
-        int baseSusRate = diffChoice * 15; // Higher difficulty means higher suspicion speed increases
-
-        // Pick target recipe name from designated tier pools
-        std::string targetRecipeName;
-        if (diffChoice == 1) targetRecipeName = easyPool[std::rand() % easyPool.size()];
-        else if (diffChoice == 2) targetRecipeName = normalPool[std::rand() % normalPool.size()];
-        else targetRecipeName = hardPool[std::rand() % hardPool.size()];
-
-        bool researchRoomBuilt = false;
-        int recipePieces = 0;
-        int suspicionRate = 0;
-
-        std::cout << "\n Infiltrating competitor kitchen on " << diffStr << " difficulty...\n";
-        std::cout << " Objective: Reverse engineer: \"" << targetRecipeName << "\"\n";
-
-        while (recipePieces < 3 && suspicionRate < 100) {
-            std::cout << "\n================================═════════════════════════\n";
-            std::cout << "                 COMPETITOR KITCHEN WORKPLACE            \n";
-            std::cout << "================================═════════════════════════\n";
-            std::cout << " Danger State Tracker: Suspicion Level: [" << suspicionRate << "%]\n";
-            std::cout << " Formula Data Gathered: [" << recipePieces << "/3 Pieces Collected]\n";
-            std::cout << " Research Laboratory Module: " << (researchRoomBuilt ? "Constructed & Functional" : "NOT BUILT YET (Requires $50 construction allocation)") << "\n\n";
-            
-            std::cout << " Competitor cooks around you are frying patties and slicing fresh tomatoes...\n";
-            std::cout << " 1. Build Secret Research Room ($50)\n";
-            std::cout << " 2. Start Assembling Target Recipe Burger\n";
-            std::cout << " 3. Abandon Mission and Escape\n";
-            std::cout << " Choice: ";
-
-            int action;
-            HandleSafeInput(action);
-
-            if (action == 1) {
-                if (researchRoomBuilt) {
-                    std::cout << " Secret room is already built hidden behind the pantry walls!\n";
-                } else if (inv.gold >= 50) {
-                    inv.gold -= 50;
-                    researchRoomBuilt = true;
-                    std::cout << " You paid off-the-books builders. The secret research space is built!\n";
-                } else {
-                    std::cout << " You don't have enough personal funds to hide your setup here yet.\n";
-                }
-            }
-            else if (action == 2) {
-                // Realistic multi-tier cooking phase
-                std::cout << "\n Preparing the order... Let's stack the ingredients!\n";
-                std::vector<std::string> steps = { "Bun Base", "Grilled Patty", "Melted Cheese", "Fresh Sliced Tomato", "Ketchup squirt", "Bun Top" };
-                bool cookSuccess = true;
-
-                for (const auto& step : steps) {
-                    std::cout << " Add " << step << "? (1: Yes, 2: No/Ruined): ";
-                    int buildChoice;
-                    HandleSafeInput(buildChoice);
-                    if (buildChoice != 1) {
-                        cookSuccess = false;
-                        std::cout << " You dropped the burger items on the floor! Attempt failed.\n";
-                        break;
-                    }
-                }
-
-                if (!cookSuccess) continue;
-
-                std::cout << "\n The premium burger stack is perfectly prepared!\n";
-                std::cout << " Where are you taking it?\n";
-                std::cout << " 1. Deliver to waiting line customer (Reduces suspicion by 10%)\n";
-                std::cout << " 2. Sneak into the Secret Research Room\n";
-                std::cout << " Choice: ";
-                
-                int deliveryChoice;
-                HandleSafeInput(deliveryChoice);
-
-                if (deliveryChoice == 1) {
-                    std::cout << " Customer served nicely. Competitor cooks think you are hard at work!\n";
-                    suspicionRate = std::max(0, suspicionRate - 10);
-                }
-                else if (deliveryChoice == 2) {
-                    if (!researchRoomBuilt) {
-                        std::cout << " You don't have a safe room built yet! You scrambled back out to the main lines in a panic.\n";
-                        continue;
-                    }
-                    
-                    // Risk element: High difficulty increases risk scaling
-                    int checkChance = std::rand() % 100;
-                    if (checkChance < (40 + baseSusRate)) {
-                        suspicionRate += baseSusRate;
-                        std::cout << " Warning! A line cook watched you walk towards the backup room without serving a customer!\n";
-                        std::cout << " Suspicion grew by " << baseSusRate << "%.\n";
-                    } else {
-                        std::cout << " Clean exit. Nobody noticed your movement!\n";
-                    }
-
-                    recipePieces++;
-                    std::cout << " Successfully analyzed a piece of the composition structure! (" << recipePieces << "/3)\n";
-                }
-            }
-            else if (action == 3) {
-                std::cout << " You slipped out the back window. Mission cancelled safely.\n";
-                return;
-            }
-        }
-
-        if (suspicionRate >= 100) {
-            std::cout << "\n CRITICAL FAILURE: The Head Chef caught you red-handed copying technical specs.\n";
-            std::cout << " You were fired instantly and kicked out onto the street! All collected data lost.\n";
-        }
-        else if (recipePieces >= 3) {
-            std::cout << "\n VICTORY! You completely reverse-engineered the recipe for: " << targetRecipeName << "!\n";
-            
-            // Generate payout and entry metrics based on dynamic values
-            int dynamicPayout = 30 + (diffChoice * 25);
-            StolenRecipe newRecipe = { targetRecipeName, diffStr, 1, dynamicPayout };
-            unlockedRecipes.push_back(newRecipe);
-            
-            std::cout << " This menu selection is now available to execute at your own home restaurant!\n";
-            currentStage++;
-        }
-    }
-
-    void RunOwnRestaurant() {
-        std::cout << "\n══════════════════════════════════════════════════\n";
-        std::cout << "                YOUR FLAVOR DINER CONSOLE          \n";
-        std::cout << "══════════════════════════════════════════════════\n";
-
-        if (unlockedRecipes.empty()) {
-            std::cout << " You don't have any stolen recipes to cook yet!\n";
-            std::cout << " Go infiltrate the competitors to secure menu files first.\n";
-            return;
-        }
-
-        std::cout << " Active Stolen Formulations Available:\n";
-        for (size_t i = 0; i < unlockedRecipes.size(); ++i) {
-            std::cout << " " << i + 1 << ". " << unlockedRecipes[i].name << " [" << unlockedRecipes[i].difficulty << " Tier Payout: $" << unlockedRecipes[i].sellPayout << "]\n";
-        }
-        std::cout << " Choice of recipe to deploy: ";
-        int recChoice;
-        HandleSafeInput(recChoice);
-        if (recChoice < 1 || recChoice > (int)unlockedRecipes.size()) return;
-
-        StolenRecipe activeRec = unlockedRecipes[recChoice - 1];
-
-        std::cout << "\n Execution Mode Settings:\n";
-        std::cout << " 1. Run Manual Production Assembly Line Run\n";
-        std::cout << " 2. Run Automated Machinery Batch Processing Loops\n";
-        std::cout << " Choice: ";
-        int runChoice;
-        HandleSafeInput(runChoice);
-
-        if (runChoice == 1) {
-            // Check component inventory availability before running manual recipe items
-            if (inv.buns > 0 && inv.patties > 0 && inv.cheese > 0 && inv.tomatoes > 0 && inv.ketchup > 0) {
-                inv.buns--; inv.patties--; inv.cheese--; inv.tomatoes--; inv.ketchup--;
-                inv.gold += activeRec.sellPayout;
-                std::cout << " You compiled the ingredients safely and served it. Earned $" << activeRec.sellPayout << " gold!\n";
-            } else {
-                std::cout << " Missing necessary raw materials inventory ingredients! Visit the shop to replenish stock counts.\n";
-            }
-        }
-        else if (runChoice == 2) {
-            if (!autoUpgrades.hasAutoCooker) {
-                std::cout << " Setup processing unit locked! Go purchase the Auto-Cooker terminal from the shop first.\n";
-                return;
-            }
-
-            int batchRuns = 1 + autoUpgrades.autoSpeedLevel;
-            int successfulRuns = 0;
-
-            for (int i = 0; i < batchRuns; ++i) {
-                if (inv.buns > 0 && inv.patties > 0 && inv.cheese > 0 && inv.tomatoes > 0 && inv.ketchup > 0) {
-                    inv.buns--; inv.patties--; inv.cheese--; inv.tomatoes--; inv.ketchup--;
-                    inv.gold += activeRec.sellPayout;
-                    successfulRuns++;
-                } else {
-                    break;
-                }
-            }
-
-            if (successfulRuns > 0) {
-                std::cout << " Automated cycle executed " << successfulRuns << " iterations seamlessly.\n";
-                std::cout << " Accumulated total gain of $" << (successfulRuns * activeRec.sellPayout) << " gold into accounts!\n";
-            } else {
-                std::cout << " Automated line stalled immediately due to total resource depletion.\n";
-            }
-        }
-    }
-
-public:
-    void Start() {
-        std::srand(static_cast<unsigned int>(std::time(nullptr)));
-        ShowOpeningCutscene();
-
-        while (!quitGame) {
-            std::cout << "\n================================═════════════════════════\n";
-            std::cout << "           MAIN HUB: STEAL & COOK MANAGEMENT TERMINAL     \n";
-            std::cout << "================================═════════════════════════\n";
-            std::cout << " Current Operational Funds: $" << inv.gold << " | Current Campaign Tier: Stage " << currentStage << "\n";
-            std::cout << " Storage Vault Stock: Buns: " << inv.buns << " | Patties: " << inv.patties << " | Cheese: " << inv.cheese << " | Tomatoes: " << inv.tomatoes << " | Ketchup: " << inv.ketchup << "\n";
-            std::cout << " Automation Rig Status: " << (autoUpgrades.hasAutoCooker ? "Online (Level " + std::to_string(autoUpgrades.autoSpeedLevel) + ")" : "Offline") << "\n";
-            std::cout << " Formulas Inverted: " << unlockedRecipes.size() << " unlocked\n";
-            std::cout << "---------------------------------------------------------\n";
-            std::cout << " 1. Go Infiltrate Competitor Kitchen (Steal Recipes)\n";
-            std::cout << " 2. Access Management Desk (Run / Automate Your Restaurant)\n";
-            std::cout << " 3. Visit Supplier Warehouse Shop (Buy Upgrades & Materials)\n";
-            std::cout << " 4. Close Game Session\n";
-            std::cout << " Choose Operation Code: ";
-
-            int selection;
-            HandleSafeInput(selection);
-
-            switch (selection) {
-                case 1: InfiltrateMission(); break;
-                case 2: RunOwnRestaurant(); break;
-                case 3: RunShop(); break;
-                case 4: quitGame = true; break;
-                default: std::cout << " Invalid control loop parameter target. Try again.\n"; break;
-            }
-        }
-        std::cout << "\n Exiting game core terminal. Saving data configs... Done.\n";
-    }
-};
+}
 
 int main() {
-    GameEngine game;
-    game.Start();
+    std::srand(std::time(nullptr));
+    const int windowWidth = 900;
+    const int windowHeight = 650;
+    InitWindow(windowWidth, windowHeight, "Steal and Cook - Graphical Simulation");
+    SetTargetFPS(60);
+
+    GameScreen currentScreen = MENU;
+
+    while (!WindowShouldClose()) {
+        // ════════════════════════════════════════════════════════════════════
+        //  UPDATE & GAMEPLAY SCENE LOGIC TRACKERS
+        // ════════════════════════════════════════════════════════════════════
+        switch (currentScreen) {
+            case INFILTRATION: {
+                if (suspicion >= 100.0f) {
+                    activeBurgerLayers.clear();
+                    suspicion = 0.0f;
+                    secretRoomBuilt = false;
+                    recipePiecesCollected = 0;
+                    currentScreen = MENU;
+                }
+                if (recipePiecesCollected >= 3) {
+                    unlockedRecipes.push_back({targetRecipeName, (selectedDifficulty == 1 ? "Easy" : selectedDifficulty == 2 ? "Normal" : "Hard"), 30 + (selectedDifficulty * 25)});
+                    activeBurgerLayers.clear();
+                    suspicion = 0.0f;
+                    secretRoomBuilt = false;
+                    recipePiecesCollected = 0;
+                    currentStage++;
+                    currentScreen = MENU;
+                }
+            } break;
+            default: break;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  RENDER GRAPHICS LAYER
+        // ════════════════════════════════════════════════════════════════════
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        // Render standard overhead resources status bar across management screens
+        if (currentScreen != MENU) {
+            DrawRectangle(0, 0, windowWidth, 45, DARKGRAY);
+            DrawText(TextFormat("Gold: $%d", gold), 20, 12, 20, GREEN);
+            DrawText(TextFormat("Stage: %d", currentStage), 200, 12, 20, WHITE);
+            DrawText(TextFormat("Buns:%d | Patties:%d | Cheese:%d | Tomato:%d", inventoryBuns, inventoryPatties, inventoryCheese, inventoryTomatoes), 400, 14, 16, LIGHTGRAY);
+            if (DrawButton({800, 7, 80, 30}, "HUB", REALGRAY, WHITE)) {
+                currentScreen = MENU;
+            }
+        }
+
+        switch (currentScreen) {
+            case MENU: {
+                DrawRectangle(0, 0, windowWidth, windowHeight, BLANK);
+                DrawText("STEAL AND COOK", windowWidth/2 - MeasureText("STEAL AND COOK", 40)/2, 80, 40, FILECOLOR);
+                DrawText("No Workers Allowed. Infiltrate competitors, secure recipes, automate production.", windowWidth/2 - MeasureText("No Workers Allowed. Infiltrate competitors, secure recipes, automate production.", 16)/2, 140, 16, GRAY);
+
+                if (DrawButton({windowWidth/2 - 150, 240, 300, 50}, "1. INFILTRATE COMPETITORS", DERK), WHITE)) {
+                    suspicion = 0.0f;
+                    recipePiecesCollected = 0;
+                    secretRoomBuilt = false;
+                    activeBurgerLayers.clear();
+                    
+                    // Assign dynamic target recipe name
+                    std::vector<std::string> pools = {"Classic Slider", "Bacon Deluxe", "Mega Colossus Tower"};
+                    targetRecipeName = pools[std::rand() % 3];
+                    currentScreen = INFILTRATION;
+                }
+                if (DrawButton({windowWidth/2 - 150, 310, 300, 50}, "2. MY RESTAURANT DESK", BLUE, WHITE)) {
+                    currentScreen = OWN_RESTAURANT;
+                }
+                if (DrawButton({windowWidth/2 - 150, 380, 300, 50}, "3. SUPPLY WAREHOUSE SHOP", GOLD, BLACK)) {
+                    currentScreen = SHOP;
+                }
+                if (DrawButton({windowWidth/2 - 150, 470, 300, 45}, "EXIT CORE ENGINE", RED, WHITE)) {
+                    CloseWindow();
+                    return 0;
+                }
+            } break;
+
+            case INFILTRATION: {
+                DrawText(TextFormat("Targeting Formula Extraction: %s", targetRecipeName.c_str()), 30, 70, 22, DARKBROWN);
+                DrawText(TextFormat("Difficulty Configuration: Tier %d", selectedDifficulty), 30, 100, 16, GRAY);
+
+                // Suspicion Meter UI Element
+                DrawText("Chef Alert Level:", 30, 140, 16, DARKGRAY);
+                DrawRectangle(30, 165, 300, 30, LIGHTGRAY);
+                DrawRectangle(30, 165, (int)(3.0f * suspicion), 30, suspicion > 75.0f ? RED : suspicion > 45.0f ? ORANGE : GREEN);
+                DrawText(TextFormat("%d %%", (int)suspicion), 160, 171, 18, BLACK);
+
+                // Lab Structure Status Element
+                DrawText("Secret Laboratory Module:", 30, 220, 16, DARKGRAY);
+                DrawRectangleOutline(30, 245, 300, 60, DARKGRAY, 2);
+                if (secretRoomBuilt) {
+                    DrawRectangle(32, 247, 296, 56, ColorAlpha(GREEN, 0.2f));
+                    DrawText("ROOM OPERATIONAL", 90, 265, 16, DARKGREEN);
+                } else {
+                    if (DrawButton({40, 252, 280, 45}, "Build Hidden Laboratory ($50)", BLACK, WHITE)) {
+                        if (gold >= 50) { gold -= 50; secretRoomBuilt = true; }
+                    }
+                }
+
+                // Objective Status Display Tracker
+                DrawRectangle(30, 340, 300, 80, LIGHTGRAY);
+                DrawText("Data Fragments Derived:", 45, 355, 15, DARKGRAY);
+                DrawText(TextFormat("%d / 3 Modules Compiled", recipePiecesCollected), 45, 385, 20, BLACK);
+
+                // Cooking assembly area visualization window rendering bounds
+                DrawRectangle(420, 80, 430, 520, ColorAlpha(LIGHTGRAY, 0.4f));
+                DrawRectangleLines(420, 80, 430, 520, GRAY);
+                DrawText("KITCHEN ASSEMBLY STATION", 520, 95, 18, DARKGRAY);
+
+                // Stacking visual rendering handler trigger
+                DrawVisualBurger(635, 530);
+
+                // Manual Assembly Addition Buttons Interface 
+                if (DrawButton({440, 150, 160, 40}, "+ Add Bun Base", ORANGE, WHITE)) activeBurgerLayers.push_back("Bun Base");
+                if (DrawButton({440, 200, 160, 40}, "+ Add Patty", DARKBROWN, WHITE)) activeBurgerLayers.push_back("Grilled Patty");
+                if (DrawButton({440, 250, 160, 40}, "+ Add Cheese", GOLD, BLACK)) activeBurgerLayers.push_back("Melted Cheese");
+                if (DrawButton({440, 300, 160, 40}, "+ Add Tomato", RED, WHITE)) activeBurgerLayers.push_back("Fresh Tomato");
+                if (DrawButton({440, 350, 160, 40}, "+ Add Ketchup", RED, WHITE)) activeBurgerLayers.push_back("Ketchup Squirt");
+                if (DrawButton({440, 400, 160, 40}, "+ Add Bun Top", ORANGE, WHITE)) activeBurgerLayers.push_back("Bun Top");
+
+                // Check validation submission rules layout handles
+                if (activeBurgerLayers.size() >= 6) {
+                    if (DrawButton({440, 480, 220, 45}, "SERVE TO CUSTOMER", GREEN, WHITE)) {
+                        suspicion = std::max(0.0f, suspicion - 15.0f);
+                        activeBurgerLayers.clear();
+                    }
+                    if (DrawButton({440, 535, 220, 45}, "SNEAK TO SECRET LAB", PURPLE, WHITE)) {
+                        if (!secretRoomBuilt) {
+                            suspicion += 25.0f;
+                        } else {
+                            recipePiecesCollected++;
+                            if ((std::rand() % 100) < (30 + (selectedDifficulty * 15))) {
+                                suspicion += (20.0f * selectedDifficulty);
+                            }
+                        }
+                        activeBurgerLayers.clear();
+                    }
+                }
+
+                if (DrawButton({30, 560, 220, 40}, "Abort Mission Line", CHARCOAL, WHITE)) {
+                    currentScreen = MENU;
+                }
+            } break;
+
+            case OWN_RESTAURANT: {
+                DrawText("MANAGEMENT DESK OPERATIONS", 30, 70, 26, DARKGRAY);
+
+                if (unlockedRecipes.empty()) {
+                    DrawText("You have no stolen recipes available! Infiltrate targets first.", 30, 150, 18, RED);
+                } else {
+                    DrawText("Stolen Blueprints Online Deployment Selector:", 30, 130, 18, DARKGRAY);
+                    
+                    for (int i = 0; i < (int)unlockedRecipes.size() && i < 4; i++) {
+                        int rowY = 170 + (i * 95);
+                        DrawRectangle(30, rowY, 820, 80, LIGHTGRAY);
+                        DrawText(unlockedRecipes[i].name.c_str(), 50, rowY + 15, 20, BLACK);
+                        DrawText(TextFormat("Tier: %s | Payout Base Value: $%d", unlockedRecipes[i].difficulty.c_str(), unlockedRecipes[i].payout), 50, rowY + 45, 14, DARKGRAY);
+
+                        // Manual cooking verification checks
+                        if (DrawButton({480, rowY + 20, 160, 40}, "Manual Cook", BLUE, WHITE)) {
+                            if (inventoryBuns > 0 && inventoryPatties > 0 && inventoryCheese > 0 && inventoryTomatoes > 0) {
+                                inventoryBuns--; inventoryPatties--; inventoryCheese--; inventoryTomatoes--;
+                                gold += unlockedRecipes[i].payout;
+                            }
+                        }
+                        
+                        // Automated loop validation tracking mechanics
+                        if (hasAutoCooker) {
+                            if (DrawButton({660, rowY + 20, 160, 40}, "Run Auto Batch", GREEN, WHITE)) {
+                                int loops = 1 + autoLevel;
+                                for (int k = 0; k < loops; k++) {
+                                    if (inventoryBuns > 0 && inventoryPatties > 0 && inventoryCheese > 0 && inventoryTomatoes > 0) {
+                                        inventoryBuns--; inventoryPatties--; inventoryCheese--; inventoryTomatoes--;
+                                        gold += unlockedRecipes[i].payout;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } break;
+
+            case SHOP: {
+                DrawText("MATERIAL SUPPLIER & AUTOMATION RIGS", 30, 70, 26, DARKGRAY);
+
+                // Resource Purchase Handles Matrix Row Layouts
+                int startItemY = 140;
+                auto DrawShopRow = [&](int idx, const char* name, int cost, int& targetInv) {
+                    int yPos = startItemY + (idx * 60);
+                    DrawText(TextFormat("%s (x5 Bulk pack) - Cost: $%d", name, cost), 40, yPos + 10, 18, BLACK);
+                    if (DrawButton({450, (float)yPos, 140, 35}, "Purchase", ORANGE, WHITE)) {
+                        if (gold >= cost) { gold -= cost; targetInv += 5; }
+                    }
+                };
+
+                DrawShopRow(0, "Premium Dough Buns", 10, inventoryBuns);
+                DrawShopRow(1, "Fresh Raw Patties", 20, inventoryPatties);
+                DrawShopRow(2, "Cheddar Cheese Slices", 15, inventoryCheese);
+                DrawShopRow(3, "Organic Tomatoes", 12, inventoryTomatoes);
+
+                // Machine processing terminal modules setup fields
+                DrawLine(30, 410, 850, 410, GRAY);
+                DrawText("Automation Factory Hardware System upgrades (No Labor Mode):", 30, 430, 18, DARKGRAY);
+
+                if (!hasAutoCooker) {
+                    if (DrawButton({30, 470, 400, 50}, "Purchase Auto-Assembly Engine Setup ($100)", RED, WHITE)) {
+                        if (gold >= 100) { gold -= 100; hasAutoCooker = true; }
+                    }
+                } else {
+                    DrawText(TextFormat("Auto-Assembly Engine Rig: ONLINE (Processing Level: %d)", autoLevel), 30, 470, 18, GREEN);
+                    int upgCost = (autoLevel + 1) * 50;
+                    if (DrawButton({30, 510, 400, 45}, TextFormat("Upgrade Conveyor Feed Throughput ($%d)", upgCost), BLACK, WHITE)) {
+                        if (gold >= upgCost) { gold -= upgCost; autoLevel++; }
+                    }
+                }
+            } break;
+        }
+
+        EndDrawing();
+    }
+
+    CloseWindow();
     return 0;
 }
